@@ -1,0 +1,76 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+        <!-- 最新版本的 Bootstrap 核心 CSS 文件 -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+        <!-- 可选的 Bootstrap 主题文件（一般不用引入） -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+        <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+        <title>上传文件</title>
+    </head>
+        <body>
+          <div class="container" style="border-radius:2px;height:100%;weight:auto;background:#fff;padding:0px;margin-bottom:0px;">
+              <div class="panel panel-default">
+                <div class="panel-heading" style="border:none;">
+                    <!-- <h3 class="panel-title">数据集上传</h3> -->
+                    <div class="page-header"  >
+                      <h3>测试集上传</h3>
+                    </div>
+                </div>
+                <div class="panel-body" style="border:none;height:2000px;">
+                    <form action="dataset/" method="POST" enctype="multipart/form-data" >
+                      <!-- {% csrf_token %} -->
+                      <div class="form-group">
+                        <label for="exampleInputEmail1">测试集名称</label>
+                        <input type="text" class="form-control" name="dataSet_name" placeholder="测试集名称">
+                      </div>
+                      <input type="hidden" name="dataSet_type" value="testset"/>
+                      <div class="form-group" name="">
+                        <label for="exampleInputPassword1">数据类型</label>
+                        <select class="form-control">
+                        <option value ="trainset">离散型</option>
+                        <option value ="testset">连续型</option>
+                      </select>
+                      </div>
+                      <div class="form-group">
+                        <label for="exampleInputFile">选择测试集文件</label>
+                        <input type="file" id="exampleInputFile" name="csvdataset" >
+                        <p class="help-block">注意:仅支持csv格式!</p>
+                      </div>
+                      <button type="submit" class="btn btn-default">上传测试集</button>
+                    </form>
+                </div>
+              </div>
+          </div>
+        </body>
+</html>
+<!--
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Title</title>
+    </head>
+	<body>
+		<form action="dataset/" method="POST" enctype="multipart/form-data" >
+            {% csrf_token %}
+            数据集名称：
+            <input type="text" name="dataSet_name" required/>
+            <br/>
+            数据集类型:
+            <select name="dataSet_type">
+                <option value ="trainset">训练集</option>
+                <option value ="testset">测试集</option>
+            </select>
+            <br/>
+            选择文件(仅支持csv格式):
+ 			<input type="file" name="csvdataset" accept="text/csv"/> 
+ 			<br/>
+			<input type="submit" value="Upload"/>
+		</form>
+	</body>	
+</html>-->
