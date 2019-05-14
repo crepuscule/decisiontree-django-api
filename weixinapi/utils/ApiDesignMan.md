@@ -364,7 +364,7 @@ urls匹配正则: re_path(r'^analysis/(?P<analysis_id>[0-9a-z]*)') => 对应view
 ## 测试文档
 ### 测试步骤
 1. 火狐 http://localhost:8000/weixinapi/upload上传数据集
-2. 谷歌 https://apizza.net/pro/#/project/0d9f23d659bb5f9104692d10e3789ccd/dev | [POST]localhost:8000/weixinapi/tree/ | tree:{"tree_name":"","tree_type":"CART","optimize_type":"null","dataSet_id":5,"fields":""}(参考火狐上的字段)
+2. 谷歌 https://apizza.net/pro/#/project/0d9f23d659bb5f9104692d10e3789ccd/dev | [POST]localhost:8000/weixinapi/tree/ | tree:{"tree_name":"","tree_type":"CART","optimize_type":"null","dataSet_id":5,"fields":"","outDataSet_id":0}(参考火狐上的字段)
 3. 火狐 localhost:8000/weixinapi/tree/id && localhost:8000/weixinapi/treegraph?tree_id=查看刚刚生成的树
 4. 谷歌 https://apizza.net/pro/#/project/0d9f23d659bb5f9104692d10e3789ccd/dev | [POST]localhost:8000/weixinapi/analysis/ | analysis: {"dataSet_id":"无空格的观测数据","tree_id":xx}
 5. 谷歌 https://apizza.net/pro/#/project/0d9f23d659bb5f9104692d10e3789ccd/dev | [POST]localhost:8000/weixinapi/analysis/ | analysis: {"analysis_name":"分析报告","dataSet_id":18,"tree_id":21}

@@ -65,7 +65,7 @@ def identifyType_db(dbname="db_dataset",tablename='lenses_one',fields=[]):
     
     tmpdata = list(tmpdata[0][:-1])
     for value in tmpdata:
-        #print(type(value),"\nis?",is_number(value))
+        print(type(value),"\nis?",is_number(value))
         if value == '-' or is_number(value):
             pass
         else:
@@ -132,7 +132,7 @@ def readFromDB(dbname="db_dataset",tablename='lenses_one',fields=[],decisionTree
     #这里根据dataset数据列数来决定labels裁剪，总比dataset列数少1
     labels = fields[:len(dataSet[0])-1]
     print("\n------------------------------SQL:------------------------------\n",sql,
-          "\n--------------------------前10条dataSet:---------------------\n",dataSet[0],
+          "\n--------------------------前10条dataSet:---------------------\n",dataSet[:10],
           "\n-----------------------------Labels:----------------------------\n",labels)
     return dataSet,labels
 
@@ -145,7 +145,7 @@ def identifyType_csv(filename='data'):
     #连续型的最后一列可能是字符串，应该去除
     line = newline[:-1]
     for value in line:
-        #print(value,"\nis?",is_number(value))
+        print(value,"\nis?",is_number(value))
         if is_number(value):
             pass
         else:
@@ -227,7 +227,7 @@ def majorityCnt(classList):
 
 # 选择最好的数据集划分方式
 def chooseBestFeatureToSplit(dataSet, labelProperty):
-    ##pdb.set_trace()
+    pdb.set_trace()
     numFeatures = len(labelProperty)  # 特征数
     baseEntropy = calcShannonEnt(dataSet)  # 计算根节点的信息熵
     bestInfoGain = 0.0
@@ -251,7 +251,7 @@ def chooseBestFeatureToSplit(dataSet, labelProperty):
             sortedUniqueVals.sort()
             listPartition = []
             minEntropy = inf
-            ##pdb.set_trace()
+            pdb.set_trace()
             for j in range(len(sortedUniqueVals) - 1):  # 计算划分点
                 partValue = (float(sortedUniqueVals[j]) + float(
                     sortedUniqueVals[j + 1])) / 2
@@ -269,7 +269,7 @@ def chooseBestFeatureToSplit(dataSet, labelProperty):
         infoGain = baseEntropy - newEntropy  # 计算信息增益
         if infoGain > bestInfoGain:  # 取最大的信息增益对应的特征
             bestInfoGain = infoGain
-            ##pdb.set_trace()
+            pdb.set_trace()
             #print("bestFeature:",i,"bestPartValue",bestPartValue)
             bestFeature = i
             bestPartValue = bestPartValuei
@@ -277,7 +277,7 @@ def chooseBestFeatureToSplit(dataSet, labelProperty):
 
 # 创建树, 样本集 特征 特征属性（0 离散， 1 连续）
 def createTree(dataSet, labels, labelProperty,text):
-    ##pdb.set_trace()
+    pdb.set_trace()
     #print("DDD:",dataSet,"\n",labels,"\n", labelProperty)
     #print("DDD:",len(dataSet[0]),"\n",len(labels),"\n", len(labelProperty))
     classList = [example[-1] for example in dataSet]  # 类别向量
@@ -306,7 +306,7 @@ def createTree(dataSet, labels, labelProperty,text):
             subLabelProperty = labelPropertyNew[:]
             myTree["children"].append(createTree(splitDataSet_dis(dataSet,bestFeat,value),subLabels,subLabelProperty,value))
     else:
-        ##pdb.set_trace()
+        pdb.set_trace()
         #对连续的特征，不删除该特征，分别构建左子树和右子树
         #print("labels",labels,"\nbestFeat:",bestFeat,"\nlabels长度:",len(labels))
         bestFeatLabel = labels[bestFeat]
@@ -317,7 +317,7 @@ def createTree(dataSet, labels, labelProperty,text):
         subLabels = labels[:]
         subLabelProperty = labelProperty[:]
         # 构建左子树
-        valueLeft = '<='+str(bestPartValue) #'是'
+        valueLeft = '<'+str(bestPartValue) #'是'
         myTree["children"][1] =createTree(splitDataSet(dataSet, bestFeat,bestPartValue,'L'), subLabels,subLabelProperty,valueLeft)
 
         # 构建右子树
@@ -335,7 +335,7 @@ def classify(jsonTree,labels,observation,decisionTreeType):
     #是分支节点
     else:
         if decisionTreeType == "Continuous":
-            ##pdb.set_trace()
+            pdb.set_trace()
             #找到本节点属性列对应的属性值
             v=float(observation[nameToIndex(labels,jsonTree['name'])])
             #v=float(observation[jsonTree["col"]])
@@ -464,8 +464,8 @@ def testMajor(major,testData):
     return float(errorCount)        
 
 #weight剪枝权重，值越大剪去的枝越少
-def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT,decisionTreeType="Continuous"):
-    #pdb.set_trace()
+def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT,decisionTreeType="Discrete"):
+    pdb.set_trace()
     #当前节点的属性名称
     firstStr = inputTree['name']    #firstStr = list(inputTree.keys())[0]       #所有keys中的第一个
     #当前节点的所有孩子
@@ -478,15 +478,17 @@ def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT,decisionTreeType
         #当前节点的属性名称下标
         featKey = copy.deepcopy( firstStr)
         labelIndex = labels.index(featKey)
-        #print("为何是10?",len(labels),"\n",labels,"\n",featKey,"\n",labels.index(featKey))
+        #print("为何是10?????",labels,"\n",featKey,"\n",labels.index(featKey))
         #用于递归的子labels
         subLabels = labels[:]         
         
-        #pdb.set_trace()
+        pdb.set_trace()
         
         #离散型是多叉树
         if decisionTreeType == "Discrete":
             if labelIndex != "null":
+                print(labelIndex)
+                print("->",labels)
                 del(labels[labelIndex])          #del(labels[labelIndex])   删除本节点特征
             
             for i in range(len(children)):
@@ -505,7 +507,7 @@ def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT,decisionTreeType
                 return {'name':majorityCnt(classList),'col':'null','text':inputTree['text'],'children':'null'}
 
         elif decisionTreeType == "Continuous":
-            #pdb.set_trace()
+            pdb.set_trace()
             #右孩子
             threshold = re.findall(r"\d+\.?\d*",children[1]['text'])[0]
             subDataSet = splitDataSet(dataSet,labelIndex,float(threshold),"L")
@@ -516,7 +518,6 @@ def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT,decisionTreeType
             #左孩子
             threshold = re.findall(r"\d+\.?\d*",children[0]['text'])[0]  
             subDataSet = splitDataSet(dataSet,labelIndex,float(threshold),"R")
-            #print("subTest splitDataSet:",len(dataSet[0]),"\n",labelIndex,"\n",float(threshold))
             subTestSet = splitDataSet(testData,labelIndex,float(threshold),"R")
             if len(subDataSet) > 0 and len(subTestSet) > 0:
                 inputTree["children"][0] = pruningTree(children[0],subDataSet,subTestSet,subLabels,weight,decisionTreeType)
@@ -530,7 +531,7 @@ def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT,decisionTreeType
             else:
                 # 剪枝，原父结点变成子结点，其类别由多数表决法决定
                 return {'name':majorityCnt(classList),'col':'null','text':inputTree['text'],'children':'null'}
-    #pdb.set_trace()
+    pdb.set_trace()
     return inputTree     
 
 
@@ -543,7 +544,6 @@ class C45:
     #数据表头/特征名(一维数组)
     labels = []
     #数据库字段选择器
-    bakFields = []
     fields = []
     #决策树类型(离散型Discrete/连续型Continuous)
     decisionTreeType = ""
@@ -566,7 +566,6 @@ class C45:
         #数据源名称
         self.sourceName=sourceName
         self.fields = fields
-        self.bakFields = fields
         '''读取数据判断类型'''
         if dataSource == 'csv':
             self.decisionTreeType = identifyType_csv(sourceName)
@@ -580,15 +579,21 @@ class C45:
             self.sourceDataSet,self.labels = readFromDB(dbname,tablename,fields,self.decisionTreeType)
             #为了防止labels少属性情况
             self.fields = self.labels
+            print("]]]]]]]")
+            print("fields:",fields)
+            print("self.labels:",self.labels)
+            print("self.fields:",self.fields)
         else:
             return {"message":"please specify the dataSource, csv or db" }
         if self.decisionTreeType == "Discrete":
             self.typeList = [0 for _ in range(len(self.fields))]            
         elif self.decisionTreeType == "Continuous":
             self.typeList = [1 for _ in range(len(self.fields))]
+        print("fuckfuck!!")
+        print(self.fields,len(self.fields))
+        print(self.typeList,len(self.typeList))
 
-
-    def GenerateC45(self,target="dictTree",pruning="none",outSourceName="db_dataset.15级计算机专业个人成绩表_test"):
+    def GenerateC45(self,target="dictTree",pruning="none",outSourceName="db_slg.iri_test"):
         DictTrees = []
         ACC = 0.0
         ACCIndex = 0
@@ -601,14 +606,13 @@ class C45:
         if pruning == "outpruning":
             outdbname = outSourceName.split('.')[0]
             outtablename = outSourceName.split('.')[1]            
-            outtestData,swaplabels = readFromDB(outdbname,outtablename,self.bakFields,self.decisionTreeType)  
+            outtestData,labels = readFromDB(outdbname,outtablename,self.fields,self.decisionTreeType)  
         
         #五次循环找最佳
         for i in range(5):        
             sourceDataSet = self.sourceDataSet     
             typeList = self.typeList
-            #labels = self.fields
-            labels =  copy.deepcopy(self.fields)
+            labels = self.fields
             decisionTreeType= self.decisionTreeType
             
             #内剪枝只有内部测试集精度
@@ -617,14 +621,16 @@ class C45:
                 dataSet,intestData = createCVDataSet(sourceDataSet,some_list=[0,1],probabilities=[0.75,0.25])
                 #生成
                 starttime = datetime.datetime.now()
-
+                pdb.set_trace()
                 dictTree = createTree(dataSet,labels,typeList,"null")
-                
+                #print("chandu:",len(dataSet[0]),"\n",len(labels))
+                #print("dataSetin:",dataSet[0])
+                #print("labelinit:",labels)
                 endtime = datetime.datetime.now()
 
                 #剪枝
                 print("内剪枝之前:",json.dumps(dictTree))
-                pruningTree(dictTree,dataSet,intestData,labels,WEIGHT,decisionTreeType)
+                pruningTree(dictTree,dataSet,intestData,labels)
                 #评测
                 trainACC,result = checkAccuracy(dictTree,dataSet,labels,decisionTreeType)
                 testACC,result = checkAccuracy(dictTree,intestData,labels,decisionTreeType)
@@ -638,8 +644,8 @@ class C45:
                 dictTree = createTree(dataSet,labels,typeList,"null")
                 
                 endtime = datetime.datetime.now()
-
-                pruningTree(dictTree,dataSet,outtestData,labels,WEIGHT,decisionTreeType)
+                print('外剪枝之前',json.dumps(dictTree))
+                pruningTree(dictTree,dataSet,outtestData,labels)
                 #评测
                 trainACC,result = checkAccuracy(dictTree,dataSet,labels,decisionTreeType)
                 testACC,result = checkAccuracy(dictTree,outtestData,labels,decisionTreeType)
@@ -780,6 +786,7 @@ class C45:
         elif dataSource == "db":
             dbname = sourceName.split('.')[0]
             tablename = sourceName.split('.')[1]
+            print(dbname,tablename,fields,decisionTreeType)
             dataSet,labels = readFromDB(dbname,tablename,fields,decisionTreeType)          
         elif dataSource == "list":
             dataSet = sourceName
@@ -803,12 +810,49 @@ class C45:
 #----------------------模块直接执行--------------------------
 if __name__ == '__main__':
   
-    fields=['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','OperatingSystem','CppProgramming','ProgrammingPractice','JavaProgramming','COM_VC2']
+    fields=['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','OperatingSystem','CppProgramming','ProgrammingPractice','JavaProgramming','NCRE_CPP2']
     
-    control = C45('db',"db_dataset.lense_train",fields=[])
-    dictTree = control.GenerateC45('dictTree','outpruning','db_dataset.lense_test')
+    control = C45('db',"db_dataset.15级计算机专业个人成绩表_train",fields)
+    dictTree = control.GenerateC45('dictTree','inpruning','db_dataset.15级计算机专业个人成绩表_test')
+    #print(control.CalcProperties())
+    #testACC = control.ClassifyAndAnalysis(dictTree,'db','db_dataset.15级计算机专业个人成绩表_test',fields,"Discrete")
+    #print(testACC[0])
+    
+    #print(control.GenerateIfThen(dictTree,(control.CalcProperties())[0]))
+
+
+
+    '''control = C45('db','db_dataset.personal_transcripts_discrete_cs',fields=['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','ComputerNetwork','OperatingSystem','CompositionPrinciple','CppProgramming','ProgrammingPractice','JavaProgramming','CSorSE','NCRE_CPP2'])#,'NCRE_NET3'])
+    control.GenerateC45('json')
+    
+    print("--结果-->",control.Classify(['failed', 'pass', 'failed', 'excellent', 'excellent', 'excellent', 'excellent', 'excellent', 'failed', 'excellent', 'failed', 'excellent', 'excellent', 'good', 'failed']))
+    
+    accuracy = control.CheckAccuracy('db','db_dataset.personal_transcripts_discrete_cs',['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','ComputerNetwork','OperatingSystem','CompositionPrinciple','CppProgramming','ProgrammingPractice','JavaProgramming','CSorSE','NCRE_CPP2'])
+    
     print(control.CalcProperties())
-    testACC = control.ClassifyAndAnalysis(dictTree,'db','db_dataset.lense_test',[],"Discrete")
-    print(testACC[0])
+    control.DrawTree()'''
+
+    '''
+    control = C45('db','db_dataset.personal_transcripts_cs',fields=['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','ComputerNetwork','OperatingSystem','CompositionPrinciple','CppProgramming','ProgrammingPractice','JavaProgramming','CSorSE','NCRE_CPP2'])#,'NCRE_NET3'])
+    control.GenerateC45('json')
     
-    print(control.GenerateIfThen(dictTree,(control.CalcProperties())[0]))
+    #print("--结果-->",control.Classify(['failed', 'pass', 'failed', 'excellent', 'excellent', 'excellent', 'excellent', 'excellent', 'failed', 'excellent', 'failed', 'excellent', 'excellent', 'good', 'failed']))
+    
+    accuracy = control.CheckAccuracy('db','db_dataset.personal_transcripts_cs',['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','ComputerNetwork','OperatingSystem','CompositionPrinciple','CppProgramming','ProgrammingPractice','JavaProgramming','CSorSE','NCRE_CPP2'])
+    print(accuracy)
+    
+    print(control.CalcProperties())
+    control.DrawTree()'''
+    
+    '''
+    control = C45('db','db_dataset.iris')
+    control.GenerateC45('json')
+    
+    #print("--结果-->",control.Classify(['failed', 'pass', 'failed', 'excellent', 'excellent', 'excellent', 'excellent', 'excellent', 'failed', 'excellent', 'failed', 'excellent', 'excellent', 'good', 'failed']))
+    
+    accuracy = control.CheckAccuracy('db','db_dataset.iris')
+    print(accuracy)
+    
+    print(control.CalcProperties())
+    control.DrawTree()
+    '''

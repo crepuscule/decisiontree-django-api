@@ -1,16 +1,26 @@
 '''CART_Discrete.py'''
 import pymysql
 import json
+import copy
+import datetime
 
 DBHOST = "47.95.196.25"
 DBUSER = "root"
 DBPWD = "12345678"
 
+
+#内部交叉验证测试集比例
+SPLIT_PROP = 0.25
+#评价模型测试正确率所占比
+TESTACC_PROP = 0.6
+#剪枝时剪枝后误差比重（值越大剪枝数越少）
+WEIGHT = 1#.675
+
 '''
 基本功能:[ok]
 
 需要深入理解的问题:
-1. 剪枝算法如何正确实现(实在不行计算百分比剪枝?)
+
 2. 不纯度计算是否正确,二叉树创树功能理解
 3. 更加深入的决策树的评定方法(单纯的精度太单薄)
 '''
@@ -221,7 +231,7 @@ def JsonToDecisionnode(jsonTree,root,labels):
         results = list(jsonTree["name"].split(","))#.rstrip().split(" , "))
         for value in results:
             dictResults[value]=1
-        print("dictResults:\n",dictResults)
+        #print("dictResults:\n",dictResults)
         root.results = dictResults
     #如果是分支节点
     else:
@@ -235,7 +245,7 @@ def JsonToDecisionnode(jsonTree,root,labels):
     return root
 
 #------------------------III.分类和评定------------------------------
-def classify(jsonTree,observation):
+def classify(jsonTree,observation,labels):
     #如果是叶子节点
     if jsonTree["children"]=="null":
         return jsonTree["name"]
@@ -249,10 +259,10 @@ def classify(jsonTree,observation):
             branch=jsonTree["children"][0]
         else:
             branch=jsonTree["children"][1]
-        return classify(branch,observation)
+        return classify(branch,observation,labels)
 
 #检测精度，调用classify方法
-def checkAccuracy(jsonTree,observations):
+def checkAccuracy(jsonTree,observations,labels):
     total = float(len(observations))
     if total <= 0:
         return 0    
@@ -267,37 +277,136 @@ def checkAccuracy(jsonTree,observations):
             correct += 1.0
         #仅用于输出
         if counts < 10:
-            print("line:",observation[:-1])
-            print("result: 真实:",observation[-1],"|预测:",result)
+            #print("line:",observation[:-1])
+            #print("result: 真实:",observation[-1],"|预测:",result)
             counts += 1
     return correct/total,classes
 
-# 决策树剪枝。(因为有些属性的分类产生的熵值的差太小，没有区分的必要)，mingain为门限。
-# 为了避免遇到大小台阶的问题（子树分支的属性比较重要），所以采取先建树，再剪支的方式
-def prune(tree,mingain):
-    # 如果分支不是叶节点，则对其进行剪枝操作
-    if tree.tb.results==None:
-        prune(tree.tb,mingain)
-    if tree.fb.results==None:
-        prune(tree.fb,mingain)
+#------------------------IV.剪枝------------------------------
+#划分交叉验证数据集合
+def createCVDataSet(dataSet,some_list=[0,1],probabilities=[1-SPLIT_PROP,SPLIT_PROP]):
+    import random 
+    import time
+    random.seed(time.time())
+    
+    def random_pick(some_list=[0,1],probabilities=[1-SPLIT_PROP,SPLIT_PROP]): 
+        x = random.uniform(0,1) 
+        cumulative_probability = 0.0 
+        for item,item_probability in zip(some_list, probabilities): 
+            cumulative_probability += item_probability 
+            if x < cumulative_probability:
+                break 
+        return item 
+    
+    list0 = []
+    list1 = []
+    testRaito = 0
+    while(testRaito < probabilities[1]-0.05 or testRaito > probabilities[1]+0.05):
+        list0 = []
+        list1 = []
+        for line in dataSet:
+            #如果返回1,说明将数据写到测试集合
+            if random_pick():
+                list1.append(line)
+            #否则写到训练集合
+            else:
+                list0.append(line)
 
-    # 如果两个自分支都是叶节点，则判断他们是否需要合并
-    if tree.tb.results!=None and tree.fb.results!=None:
-        # 构建合并后的数据集
-        tb,fb=[],[]
-        for v,c in tree.tb.results.items():
-            tb+=[[v]]*c
-        for v,c in tree.fb.results.items():
-            fb+=[[v]]*c
+        testRaito = float(len(list1))/(len(list1)+len(list0))
+        print("训练集合占比",testRaito)
+    return list0,list1
 
-        # 检查熵的减少情况
-        delta=entropy(tb+fb)-(entropy(tb)+entropy(fb)/2)
-        print(delta)
-        if delta<mingain:
-            # 合并分支
-            tree.tb,tree.fb=None,None
-            tree.results=uniquecounts(tb+fb)
+#II.3 返回最多的类别名
+def majorityCnt(classList):
+    classCount={}
+    for vote in classList:
+        if vote not in classCount.keys(): classCount[vote] = 0
+        classCount[vote] += 1
+    return max(classCount, key=classCount.get)
 
+# 计算预测误差 
+def calcTestErr(myTree,testData,labels):
+    errorCount = 0.0
+    for i in range(len(testData)): 
+        if classify(myTree,testData[i],labels) != testData[i][-1]:
+            errorCount += 1 
+    return float(errorCount)
+    
+# 计算剪枝后的预测误差
+def testMajor(major,testData):  
+    errorCount = 0.0  
+    for i in range(len(testData)):  
+        if major != testData[i][-1]:  
+            errorCount += 1   
+    return float(errorCount)
+
+            
+def splitDataSet_dis(dataSet, axis, value):
+    #print("----->",dataSet,axis,value)
+    """
+    输入：数据集，选择维度，选择值
+    输出：划分数据集
+    描述：按照给定特征划分数据集；去除选择维度中等于选择值的项
+    """
+    retDataSet = []
+    falseDataSet = []
+    for featVec in dataSet:
+        #print("featVec----->>",featVec,"\naxis:",axis)
+        if featVec[axis] == value:
+            #reduceFeatVec = featVec[:axis]
+            #reduceFeatVec.extend(featVec[axis+1:])
+            retDataSet.append(featVec)
+        else:
+            #reduceFeatVec = featVec[:axis]
+            #reduceFeatVec.extend(featVec[axis+1:])
+            falseDataSet.append(featVec)
+    return retDataSet,falseDataSet
+
+#weight剪枝权重，值越大剪去的枝越少
+def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT):#weight=1.675):    
+    #当前节点的属性名称
+    firstStr = inputTree['name']    #firstStr = list(inputTree.keys())[0]       #所有keys中的第一个
+    #当前节点的所有孩子
+    children = inputTree["children"]  #children = inputTree[firstStr]        # 获取子树
+    #当前数据中所有类别
+    classList = [example[-1] for example in dataSet]  #    classList = [example[-1] for example in dataSet]   #这个数据的类别列表
+    
+    #如果是分支节点
+    if children != "null":
+        #当前节点的属性名称下标
+        featKey = copy.deepcopy( firstStr)
+        labelIndex = labels.index(featKey)
+        #print("为何是10?????",labels,"\n",featKey,"\n",labels.index(featKey))
+        #用于递归的子labels
+        subLabels = labels[:] 
+        '''
+        if labelIndex != "null":
+        print(labelIndex)
+        print("->",labels)
+        del(labels[labelIndex])          #del(labels[labelIndex])   删除本节点特征
+        '''
+        
+        #0孩子，只有1个属性
+        threshold = children[0]["text"]
+        trueDataSet,falseDataSet = splitDataSet_dis(dataSet,labelIndex,threshold)
+        trueTestSet,falseTestSet = splitDataSet_dis(testData,labelIndex,threshold)
+        if len(trueDataSet) > 0 and len(trueTestSet) > 0:
+            inputTree["children"][0] = pruningTree(children[0],trueDataSet,trueTestSet,subLabels,weight)
+        
+        if len(falseDataSet) > 0 and len(falseTestSet) > 0:
+            inputTree["children"][1] = pruningTree(children[1],falseDataSet,falseTestSet,subLabels,weight)            
+
+        print("误差，测试集和剪枝后集合",calcTestErr(inputTree,testData,subLabels) ,"\n",testMajor(majorityCnt(classList),testData))    
+        if calcTestErr(inputTree,testData,subLabels) < weight*testMajor(majorityCnt(classList),testData):
+            if inputTree["children"][0]["name"] == inputTree["children"][1]["name"]:
+                return {'name':majorityCnt(classList),'col':'null','text':inputTree['text'],'children':'null'}
+            # 剪枝后的误差反而变大，不作处理，直接返回
+            return inputTree#1.675
+        else:
+            # 剪枝，原父结点变成子结点，其类别由多数表决法决定
+            return {'name':majorityCnt(classList),'col':'null','text':inputTree['text'],'children':'null'}
+    return inputTree        
+    
 
 #--------------------------X.总控制函数()----------------------------#
 #生成树，预测单条，预测多条，计算精度
@@ -305,16 +414,24 @@ def prune(tree,mingain):
 #生成CART树
 #输入:dataSource:{csv,db} sourceName:{csv,db.table} fields{}  target:{tree,json}
 #输出:根据target输出tree,json
-def GenerateCART(dataSource="db",sourceName="db_dataset.paly",fields=[],target="dictTree"):
+def GenerateCART(dataSource="db",sourceName="db_dataset.paly",fields=[],target="dictTree",pruning="none",outSourceName="db_slg.iri_test"):
     '''常用变量定义'''
     #数据集合(二维数组)
-    dataSet = []
+    sourceDataSet = []
     #数据表头/特征名(一维数组)
     labels = []
     #cart树
     cartTree = decisionnode()
     #字典树
     dictTree = {}
+    DictTrees = []
+    ACC = 0.0
+    ACCIndex = 0
+    
+    datasize = 0
+    costtime = 0.0
+    trainACC = 0.0
+ 
  
     '''数据源读取'''
     if dataSource == 'csv':
@@ -322,38 +439,103 @@ def GenerateCART(dataSource="db",sourceName="db_dataset.paly",fields=[],target="
     elif  dataSource == 'db':
         dbname = sourceName.split('.')[0]
         tablename = sourceName.split('.')[1]
-        dataSet,labels = readFromDB(dbname,tablename,fields)
+        sourceDataSet,labels = readFromDB(dbname,tablename,fields)
+        if pruning == "outpruning":
+            outdbname = outSourceName.split('.')[0]
+            outtablename = outSourceName.split('.')[1]
+            outtestData,labels = readFromDB(outdbname,outtablename,fields) 
     else:        
         return {"message":"please specify the dataSource, csv or db" }
 
     '''树训练'''
-    cartTree = buildtree(dataSet,labels)
-    '''树转化统一接口'''
-    dictTree = DecisionnodeToJson(dataSet,cartTree,labels,"null")
+
     '''树剪枝/优化'''
-    #prune(cartTree,0.3)
+    '''树训练,将循环5次找到最佳模型，三种剪枝模式由高层指定'''    
+    #五次循环找最佳
+    for i in range(5):        
+        #内剪枝只有内部测试集精度
+        #内部交叉验证剪枝,需要切分数据集,使用内部测试数据集合训练
+        if pruning == "inpruning":
+            dataSet,intestData = createCVDataSet(sourceDataSet,some_list=[0,1],probabilities=[1-SPLIT_PROP,SPLIT_PROP])
+            #生成
+            starttime = datetime.datetime.now()
+            
+            cartTree = buildtree(dataSet,labels)
+            '''树转化统一接口'''
+            dictTree = DecisionnodeToJson(dataSet,cartTree,labels,"null")
+            
+            endtime = datetime.datetime.now()
+
+            #剪枝
+            print("内剪枝之前:",json.dumps(dictTree))
+            pruningTree(dictTree,dataSet,intestData,labels)
+            #评测
+            trainACC,result = checkAccuracy(dictTree,dataSet,labels)
+            testACC,result = checkAccuracy(dictTree,intestData,labels)
+        #外剪枝需要外部测试集，但是不会将其记入树的字段当中，这只是一个评测好模型的手段
+        elif pruning == "outpruning":
+            dataSet = sourceDataSet
+            #生成
+            starttime = datetime.datetime.now()
+            
+            cartTree = buildtree(dataSet,labels)
+            '''树转化统一接口'''
+            dictTree = DecisionnodeToJson(dataSet,cartTree,labels,"null")
+            
+            endtime = datetime.datetime.now()
+            print('外剪枝之前',json.dumps(dictTree))
+            pruningTree(dictTree,dataSet,outtestData,labels)
+            #评测
+            trainACC,result = checkAccuracy(dictTree,dataSet,labels)
+            testACC,result = checkAccuracy(dictTree,outtestData,labels)
+        #无剪枝则训练精度越高越好
+        else:
+            dataSet = sourceDataSet
+            #生成
+            starttime = datetime.datetime.now()
+            
+            cartTree = buildtree(dataSet,labels)
+            '''树转化统一接口'''
+            dictTree = DecisionnodeToJson(dataSet,cartTree,labels,"null")
+            
+            endtime = datetime.datetime.now()
+            #评测
+            trainACC,result = checkAccuracy(dictTree,dataSet,labels)
+            testACC = 0.0
+            
+        datasize = len(dataSet)
+        costtime = (endtime - starttime).total_seconds()*1000
+        #存入数组评测
+        DictTrees.append((dictTree,datasize,costtime,trainACC,testACC))
+        
+        print("第",i,"棵树:\n",DictTrees)
+        #只有树的根节点有孩子时才能通过验证
+        if ((1-TESTACC_PROP)*trainACC+TESTACC_PROP*testACC > ACC) and (dictTree["children"] != "null"):
+            ACC = (1-TESTACC_PROP)*trainACC+TESTACC_PROP*testACC
+            ACCIndex = i
+
     
     '''树输出'''
     if target == "dictTree":  
-        print('-------------------------dictTree:----------------------------\n',json.dumps(dictTree))
-        return (dictTree)
+        print('-------------------------dictTree:----------------------------\n',DictTrees)
+        return DictTrees[ACCIndex][:-1]
     elif target == "biTree":
         return cartTree
     elif target == "json":
-        print('-------------------------json:----------------------------\n',json.dumps(dictTree))        
-        return (json.dumps(dictTree))
+        print('-------------------------json:----------------------------\n',DictTrees)        
+        return json.dumps(DictTrees[ACCIndex][0]),DictTrees[ACCIndex][1],DictTrees[ACCIndex][2],DictTrees[ACCIndex][3]
     else:        
-        return {"message":"please specify the target, dictTree，biTree or json"}
+        return {"message":"please specify the target, dictTree，biTree or json"},datasize,costtime,trainACC
 
 #根据生成好的CART树dictTree ,对新的观测数据observation进行分类
 def Classify(dictTree,observation):
-    return classify(dictTree,observation)
+    return classify(dictTree,observation,[])
 
 #根据生成好的CART树dictTree ,对新的观测数据集observations进行分类
 def ClassifyAll(dictTree,observations):
     classes = []
     for observation in observations:
-        classes.append(classify(dictTree,observation))
+        classes.append(classify(dictTree,observation,[]))
     return classes
 
 
@@ -372,8 +554,8 @@ def CheckAccuracy(dictTree,dataSource='',sourceName="",fields=[]):
     else:
         return {"message":"please specify the dataSource, csv or db" }
     
-    print('----------------CheckAccuracy DataSet(top10):-------------------\n',dataSet,'\n')
-    return checkAccuracy(dictTree,dataSet)
+    print('----------------CheckAccuracy DataSet(top10):-------------------\n',dataSet[:10],'\n')
+    return checkAccuracy(dictTree,dataSet,[])
 
 #数据库读取函数参考
 #def readFromDB(dbname="db_dataset",tablename='paly',fields=[])
@@ -381,6 +563,7 @@ def CheckAccuracy(dictTree,dataSource='',sourceName="",fields=[]):
 #---------------------------终端执行------------------------------
 #只有在执行当前模块时才会运行
 if __name__=='__main__':  
+    '''
     #生成CART (数据源类型，数据源，参与生成的域名)
     dictTree = GenerateCART("db","db_dataset.personal_transcripts_discrete_cs",['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','ComputerNetwork','OperatingSystem','CompositionPrinciple','CppProgramming','ProgrammingPractice','JavaProgramming','CSorSE','NCRE_CPP2'],"dictTree")
     
@@ -394,3 +577,12 @@ if __name__=='__main__':
     print('accuracy: {:.2%}'.format(accuracy))
 
     #print('accuracy: {:.2%}'.format(CheckAccuracy(dictTree,'db','db_dataset.forecast2',['四级','六级','政治面貌','计算机等级','综合能力','性别','result'])))
+    '''
+    
+    fields=['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','OperatingSystem','CppProgramming','ProgrammingPractice','JavaProgramming','NCRE_CPP2']
+    result = GenerateCART("db","db_dataset.15级计算机专业个人成绩离散化表_train",fields,"dictTree","none","db_dataset.15级计算机专业个人成绩离散化表_test")
+    print(result)
+    dictTree = result[0]
+    print(CheckAccuracy(dictTree,dataSource="db",sourceName="db_dataset.15级计算机专业个人成绩离散化表_test",fields=fields))
+   
+   
