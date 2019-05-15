@@ -25,7 +25,7 @@ SECRET_KEY = 'jb-7-b&$k0h%v0(o@3fr&&k4814^i7w+hho4z4li%qpa+j2jjc'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['api.crepuscule.xyz']
+ALLOWED_HOSTS = ['127.0.0.1','api.crepuscule.xyz']
 
 
 # Application definition

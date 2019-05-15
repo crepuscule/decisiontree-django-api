@@ -4,11 +4,11 @@ from weixinapi.models import DataSet,Tree,Analysis
 # Register your models here.
 
 class DataSetAdmin(admin.ModelAdmin):
-    list_display = ["dataSet_id","dataSet_name","dataSet_type","dataSet_type","table_name","fields","size","create_time"]
+    list_display = ["dataSet_id","dataSet_name","dataSet_type",'data_type',"table_name","fields","size","create_time"]
 
 
 class TreeAdmin(admin.ModelAdmin):
-    list_display = ["tree_id","tree_name","dataSet_id","tree_type","data_type","optimize_type","tree_dict","fields","depth","nodes_num","create_time"]
+    list_display = ["tree_id","tree_name","dataSet_id",'outDataSet_id',"tree_type","data_type","optimize_type","depth","nodes_num",'datasize','costtime','trainacc','sample_ratio','feature_ratio',"create_time","fields"]
 
 
 class AnalysisAdmin(admin.ModelAdmin):

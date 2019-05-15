@@ -18,9 +18,9 @@ class DataSet(models.Model):
 class Tree(models.Model):
     tree_id = models.AutoField(primary_key=True)
     #dataSet_id = models.IntegerField(blank=False,null=False)
-    dataSet = models.ForeignKey(DataSet,on_delete=models.PROTECT)
+    dataSet = models.ForeignKey(DataSet,related_name='trainset',on_delete=models.PROTECT)
     #new
-    outDataSet = models.ForeignKey(DataSet,on_delete=models.PROTECT)
+    outDataSet = models.ForeignKey(DataSet,related_name='outtestset',on_delete=models.PROTECT)
     #
     tree_name = models.CharField(max_length= 200)
     tree_type = models.CharField(max_length= 200)
@@ -28,14 +28,20 @@ class Tree(models.Model):
     optimize_type = models.CharField(max_length= 200,null=True)
     tree_dict = models.TextField(default="")
     fields = models.TextField(default="")
+    #对rf而言，传进来是最深深度约束，传出去是真实最深深度
     depth = models.IntegerField(default=0)
     nodes_num = models.IntegerField(default=0)
     #new
     datasize = models.IntegerField(default=0)
     costtime = models.FloatField(default=0.0)
     trainacc = models.FloatField(default=0.0)
-    #
+    #RF
+    sample_ratio = models.FloatField(default="0.3")
+    feature_ratio = models.FloatField(default="0.4")
     create_time = models.DateTimeField('createtime',default=timezone.now)
+    
+#森林Tree字段使用:
+#tree_type:固定CART,data_type:离散或连续,optimize_type:randomForest,tree_dict:json数组,fields:fieds,depth:最深深度,nodes_num:树的数量,datasize:集合大小,costtime:花费时间,trainacc:训练集合精度
  
 class Analysis(models.Model):
     analysis_id = models.AutoField(primary_key=True)

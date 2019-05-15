@@ -1,5 +1,10 @@
 import pymysql
 
+DBHOST = '47.95.196.25'
+DBUSER = 'root'
+DBPWD  = '12345678'
+DBNAME = 'db_dataset'
+
 # I.1 从一个有表头的csv文件读取数据
 def readFromCSV(filename='data'):
     f = open(filename)
@@ -11,14 +16,18 @@ def readFromCSV(filename='data'):
         datas.append(newline)
     f.close()
     #print(datas)
-    labels = datas[0][:len(datas[1])-1] #这里根据第2行的数据列数来决定labels裁剪多少，labels列数总比dataset列数少1
+    #labels = datas[0][:len(datas[1])-1] #这里根据第2行的数据列数来决定labels裁剪多少，labels列数总比dataset列数少1
+    labels = datas[0]
+    #如果labels少写了结果列，则比数据集列数少1,加上即可
+    if len(labels) == len(datas[1])-1:
+        labels.append('class')
     dataSet = datas[1:] #第二行开始就是数据集了
     return dataSet,labels
 
 
 def writeToDB(pathname,filename):
     dataSet,labels = readFromCSV(pathname+filename)
-    db=pymysql.connect("47.95.196.25","root","12345678",'db_dataset',charset="utf8")
+    db=pymysql.connect(DBHOST,DBUSER,DBPWD,DBNAME,charset="utf8")
     cursor = db.cursor()
     #先判断是否存在同名的表格
     filename = filename.replace(".csv","")
@@ -39,8 +48,8 @@ def writeToDB(pathname,filename):
             break
     #再根据filename,labels创建表格结构
 
-    createSql='create table %s(`id` int primary key auto_increment,' % (filename)
-    for value in labels+['result']:
+    createSql='create table `%s`(`id` int primary key auto_increment,' % (filename)
+    for value in labels:
         createSql+='`%s` varchar(255) not null,' % (value)
     createSql = createSql[:-1]
     createSql+=')engine=innoDB default charset=utf8;'
@@ -53,10 +62,12 @@ def writeToDB(pathname,filename):
         print(e)
         return -1
     
-    insertSql = "insert into %s(" % (filename)
+    insertSql = "insert into `%s`(" % (filename)
     for value in labels:
         insertSql += "`%s`," % (value)
-    insertSql += '`result`) values('
+    #insertSql += '`result`) values('
+    insertSql = insertSql[:-1]
+    insertSql += ') values('
     bakSql = insertSql
     #insertSql前半部分是共用的
     for line in dataSet:
@@ -78,6 +89,7 @@ def writeToDB(pathname,filename):
             return -2
     db.close()
     #最后返回真实的数据表名称和记录的条数
+    print(filename,len(dataSet),labels)
     return filename,len(dataSet),labels
     
 

@@ -15,10 +15,10 @@
 
 
 
-#from weixinapi.Standard_CART import CART_Discrete
-#from weixinapi.Standard_CART import CART_Continuous
-import CART_Discrete
-import CART_Continuous
+from weixinapi.Standard_CART import CART_Discrete
+from weixinapi.Standard_CART import CART_Continuous
+#import CART_Discrete
+#import CART_Continuous
 import pymysql
 import json
 
@@ -302,15 +302,16 @@ if __name__ == '__main__':
     print(control.CalcProperties())
     control.DrawTree()
     '''
-    #fields=['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','OperatingSystem','CppProgramming','ProgrammingPractice','JavaProgramming','NCRE_MS2']
-    fields = []
+    fields=['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','OperatingSystem','CppProgramming','ProgrammingPractice','JavaProgramming','COM_VC2']
     
-    control = CART('db',"db_dataset.lense_train",fields)
-    dictTree = control.GenerateCART('dictTree','outpruning','db_dataset.lense_test')
+    #fields = []
+    
+    control = CART('db',"db_dataset.15级计算机专业个人成绩表_train",fields)
+    dictTree = control.GenerateCART('dictTree','inpruning','db_dataset.15级计算机专业个人成绩表_test')
     print(json.dumps(dictTree))
     print(control.CalcProperties())
-    testACC = control.ClassifyAndAnalysis(dictTree,'db','db_dataset.lense_test',fields,"Discrete")
-    print(testACC[0])
+    testACC = control.ClassifyAndAnalysis(dictTree,'db','db_dataset.15级计算机专业个人成绩表_test',fields,"Continuous")
+    print("测试精度:",testACC[0])
     
     print(control.GenerateIfThen(dictTree,(control.CalcProperties())[0]))
     print(json.dumps(dictTree))

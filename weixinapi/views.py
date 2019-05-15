@@ -61,6 +61,7 @@ def dataSet(request,dataset_id):
     elif request.method == "POST":
         dataSet_name=request.POST.get('dataSet_name','dataset')
         dataSet_type=request.POST.get('dataSet_type','trainset')
+        data_type = request.POST.get('data_type','Continuous')
         myFile = request.FILES.get('csvdataset')
         if not myFile:
             #return JsonResponse({'message':'no file uploaded'})
@@ -74,7 +75,12 @@ def dataSet(request,dataset_id):
             #try:
             from weixinapi.utils import csv2Db
             table_name,size,fields = csv2Db.writeToDB('weixinapi/uploads/',myFile.name)
-            newdataSet = models.DataSet(dataSet_name=dataSet_name,dataSet_type=dataSet_type,table_name=table_name,fields=','.join(fields+['result']),size=size)
+            newdataSet = models.DataSet(dataSet_name=dataSet_name,
+                                        dataSet_type=dataSet_type,
+                                        data_type = data_type,
+                                        table_name=table_name,
+                                        fields=','.join(fields),
+                                        size=size)
             newdataSet.save()
             #except Exception as e:
             #    print("in [POST]dataset/ :" , e)
@@ -130,6 +136,13 @@ def tree(request,tree_id):
         #如果调用中出现了问题，直接返回给客户端
         if 'message' in newDictTree.keys():
             return JsonResponse(newDictTree)
+        #如果外部datasetid未定义，则使用datasetid替代
+        if 'outDataSet_id' not in newDictTree.keys():
+            newDictTree['outDataSet_id'] = newDictTree['dataSet_id'] 
+        if 'sample_ratio' not in newDictTree.keys():
+            newDictTree['sample_ratio']=0.0
+        if 'feature_ratio' not in newDictTree.keys():
+            newDictTree['feature_ratio'] = 0.0
         newTree = models.Tree(tree_name=newDictTree['tree_name'],
                               tree_type=newDictTree['tree_type'],
                               data_type=newDictTree['data_type'],
@@ -138,7 +151,14 @@ def tree(request,tree_id):
                               fields = ','.join(newDictTree['fields']),
                               depth=newDictTree['depth'],
                               nodes_num=newDictTree['nodes_num'],
-                              dataSet_id=newDictTree['dataSet_id'])
+                              datasize = newDictTree['datasize'],
+                              costtime = newDictTree['costtime'],
+                              trainacc = newDictTree['trainACC'],
+                              sample_ratio = newDictTree['sample_ratio'],
+                              feature_ratio = newDictTree['feature_ratio'],
+                              dataSet_id=newDictTree['dataSet_id'],
+                              outDataSet_id=newDictTree['outDataSet_id']
+                              )
         newTree.save()
         #返回新创建对象的序列化JSON
         #return JsonResponse(TreeSerializer(newTree).data)
@@ -246,47 +266,3 @@ def treeGraph(request):
         return JsonResponse({"message":"不支持除get/post之外的请求"})
 
 
-
-'''
-        defautDict = '{"name": "cpp", "text": "null", "children": [{"name": "pass", "text": ">77.0", "children": "null"}, {"name": "failed", "text": "<=77.0", "children": "null"}]}'
-        print(request.POST.get('tree'))
-        dicttree = json.loads(request.POST.get('tree'))
-        tree_name = dicttree['tree_name']
-        tree_type = dicttree['tree_type']
-        optimize_type = dicttree['optimize_type']
-        dataSet_id = dicttree['dataSet_id']
-        print(dataSet_id)
-        #根据所传入的树类型,训练集创建树
-        #先获取数据集的表名
-        try:
-            dataSet = models.DataSet.objects.get(pk=dataSet_id)
-        except:
-            return JsonResponse({'message':'dataset not found'},status=404)
-        #再根据类型判断调用哪个模块
-        if tree_type == 'CART':
-            from weixinapi.Standard_CART import CART_Standard
-            try:
-                CART_controller = CART_Standard.CART('db',dataSet.table_name,fields=['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','ComputerNetwork','OperatingSystem','CompositionPrinciple','CppProgramming','ProgrammingPractice','JavaProgramming','CSorSE','NCRE_CPP2'])
-                jsonTree = CART_controller.GenerateCART('json') 
-            except:
-                traceback.print_stack()
-                return JsonResponse({'message':'can not build tree'})
-        elif tree_type == 'C45':
-            from weixinapi.Standard_C45 import C45
-            try:
-                #注意 C45未开发数据库读取接口
-                C45_controller = C45_Standard.C45('db',dataSet.table_name,fields=['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','ComputerNetwork','OperatingSystem','CompositionPrinciple','CppProgramming','ProgrammingPractice','JavaProgramming','CSorSE','NCRE_CPP2'])
-                jsonTree = C45_controller.GenerateC45('json') 
-            except:
-                traceback.print_stack()
-                return JsonResponse({'message':'can not build tree'})
-            pass
-        elif tree_type == 'ID3':
-            pass
-        else:
-            return JsonResponse({'message':'no this type of tree'})
-
-        tree_dict = jsonTree
-        depth = 0
-        nodes_num = 0
-        '''

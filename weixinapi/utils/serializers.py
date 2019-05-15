@@ -7,6 +7,7 @@ class DataSetSerializer(serializers.Serializer):
     dataSet_id = serializers.IntegerField(read_only=True)
     dataSet_name = serializers.CharField(required=True, allow_blank=False, max_length=200)
     dataSet_type = serializers.CharField(required=True, allow_blank=False, max_length=200)
+    data_type = serializers.CharField(required=True, allow_blank=False, max_length=200)
     table_name = serializers.CharField(required=True, allow_blank=False)
     fields = serializers.CharField(required=True, allow_blank=False)
     size = serializers.IntegerField(required=True)
@@ -22,11 +23,19 @@ class TreeSerializer(serializers.Serializer):
     optimize_type = serializers.CharField(required=False, allow_blank=True, max_length=200)
     tree_dict = serializers.CharField(required=True, allow_blank=False)
     fields = serializers.CharField(required=True, allow_blank=False)
+    #对rf而言，传进来是最深深度约束，传出去是真实最深深度
     depth = serializers.IntegerField(required=True)
     nodes_num = serializers.IntegerField(required=True)
+    #new
+    datasize = serializers.IntegerField(required=True)
+    costtime = serializers.FloatField(required=True)
+    trainacc = serializers.FloatField(required=True)
+    #RF
+    sample_ratio = serializers.FloatField(required=True)
+    feature_ratio = serializers.FloatField(required=True)
     create_time = serializers.DateTimeField(read_only=True,format='%Y-%m-%d %H:%M')
     dataSet_id = serializers.IntegerField(required=True)
-
+    outDataSet_id = serializers.IntegerField(required=True)
     def create(self, validated_data):
         return Tree.objects.create(**validated_data)
 

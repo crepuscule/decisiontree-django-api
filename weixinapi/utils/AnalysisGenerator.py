@@ -24,6 +24,10 @@ class AnalysisGenerator:
         observation = partDictAnalysis['dataSet_id'].split(',')
         decisionTreeType = tree.data_type
 
+        if tree.optimize_type == 'RandomForest':
+            from weixinapi.Standard_RF import RF_Standard
+            return RF_Standard.RF.Classify(dictTree,observation,decisionTreeType)
+
         '''执行分类'''
         #再根据类型判断调用哪个模块
         # CART
@@ -68,6 +72,15 @@ class AnalysisGenerator:
         #(在单条数据中dataSet_id用作单条数据的存储位置,上层已经验证过其有数据，不用验证为空)
         sourceName = DBNAME+testDataSet.table_name
         decisionTreeType = tree.data_type
+
+        #优先随机森林
+        if tree.optimize_type == 'RandomForest':
+            from weixinapi.Standard_RF import RF_Standard
+            print(dictTree,sourceName,fields,decisionTreeType)
+            partDictAnalysis['accuracy'],partDictAnalysis['content'] = RF_Standard.RF.ClassifyAndAnalysis(dictTree,'db',sourceName,fields,decisionTreeType)
+            partDictAnalysis['ifthen'] = 'RF HAS NO IFTHEN!' 
+            partDictAnalysis['content']=','.join(partDictAnalysis['content'])
+            return partDictAnalysis
 
         #再根据类型判断调用哪个模块
         # CART
