@@ -251,8 +251,8 @@ def treeGraph(request):
         #elif request.GET.has_key("json"):
         elif 'json' in request.GET:
             jsoncontent = request.GET.get('json')
-            print(json)
-            context = {'jsonContent': tree.tree_dict}
+            print(jsoncontent)
+            context = {'jsonContent': jsoncontent}
         else:
             return JsonResponse({"message":"必须指定树的tree_id或者json来绘制树图"})
         return render(request,'weixinapi/treeGraph.html',context)

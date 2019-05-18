@@ -24,8 +24,9 @@
     </style> 
  </head> 
  <body> 
-  <!-- load the d3.js library --> 
-  <script src="https://d3js.org/d3.v3.min.js"></script> 
+  <!-- load the d3.js library 
+  <script src="https://d3js.org/d3.v3.min.js"></script> -->
+  <script src="http://d3js.org/d3.v3.min.js"></script> 
   <script>
   /*数据预处理阶段*/
     //jsonstr={{jsonContent | safe}}
@@ -123,11 +124,11 @@
         bottom: 0,
         left: 200
     },
-    //width = 960 - margin.right - margin.left,
-    //height = 500 - margin.top - margin.bottom;
+    width = 1500 - margin.right - margin.left,
+    height = 800 - margin.top - margin.bottom;
 
-    width = 2000 - margin.right - margin.left,
-    height = 1500 - margin.top - margin.bottom;
+    //width = 2000 - margin.right - margin.left,
+    //height = 1500 - margin.top - margin.bottom;
     var i = 0;
 
     var tree = d3.layout.tree().size([height, width]);
@@ -198,11 +199,11 @@
         //为连线添加文字
         linkEnter.enter()
                 .append("text")
-                .attr("x", 100)
-                .attr("y", 50)
+                .attr("x", 50)
+                .attr("y", 15)
                 .style("fill", "green")
                 //!!定义分支文字处!!
-                .style("font-size", "13px")
+                .style("font-size", "18px")
                 .style("font-weight", "bold")
                 .append("textPath")
                 .attr({ //引用路径

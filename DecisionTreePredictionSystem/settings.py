@@ -25,7 +25,7 @@ SECRET_KEY = 'jb-7-b&$k0h%v0(o@3fr&&k4814^i7w+hho4z4li%qpa+j2jjc'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1','api.crepuscule.xyz']
+ALLOWED_HOSTS = ['127.0.0.1','api.crepuscule.xyz','app.crepuscule.xyz']
 
 
 # Application definition
@@ -78,7 +78,7 @@ WSGI_APPLICATION = 'DecisionTreePredictionSystem.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'db_weixin',
+        'NAME': 'db_weixinapp',
         'USER': 'root',
         'PASSWORD': '12345678',
         'HOST': '127.0.0.1',

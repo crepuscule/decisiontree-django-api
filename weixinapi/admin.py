@@ -12,7 +12,7 @@ class TreeAdmin(admin.ModelAdmin):
 
 
 class AnalysisAdmin(admin.ModelAdmin):
-    list_display = ["analysis_id","analysis_name","tree_id","dataSet_id","accuracy","ifthen","content","create_time"]
+    list_display = ["analysis_id","analysis_name","tree_id","dataSet_id","accuracy","content","create_time"]
 
 admin.site.register(DataSet,DataSetAdmin)
 admin.site.register(Tree,TreeAdmin)
