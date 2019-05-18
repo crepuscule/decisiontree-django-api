@@ -369,9 +369,9 @@ urls匹配正则: re_path(r'^analysis/(?P<analysis_id>[0-9a-z]*)') => 对应view
 不需要剪枝的
 tree:{"tree_name":"","tree_type":"CART","optimize_type":"none","dataSet_id":1,"fields":""}
 需要内剪枝的
-tree:{"tree_name":"","tree_type":"CART","optimize_type":"inpruning","dataSet_id":1,"fields":""}
+tree:{"tree_name":"","tree_type":"CART","optimize_type":"inpruning","pruning_weight":0.8,"dataSet_id":1,"fields":""}
 需要外剪枝的
-tree:{"tree_name":"","tree_type":"CART","optimize_type":"outpruning","dataSet_id":1,"outDataSet_id":2,"fields":""}
+tree:{"tree_name":"","tree_type":"CART","optimize_type":"outpruning","pruning_weight":0.8,"dataSet_id":1,"outDataSet_id":2,"fields":""}
 (参考火狐上的字段)
 randomForest:
 {"tree_name":"随机森林","tree_type":"CART","optimize_type":"RandomForest","dataSet_id":1,"nodes_num":1000,"depth":30,"sample_ratio":0.3,"feature_ratio":0.4,"fields":""} 

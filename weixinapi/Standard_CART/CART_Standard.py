@@ -28,6 +28,7 @@ DBUSER = "root"
 DBPWD = "12345678"
 
 
+WEIGHT = 1
 '''
 基本功能:[ok]
 
@@ -150,13 +151,13 @@ class CART:
         else:
             return {"message":"please specify the dataSource, csv or db" }
 
-    def GenerateCART(self,target="dictTree",pruning="none",outSourceName="db_slg.iri_test"):
+    def GenerateCART(self,target="dictTree",pruning="none",pruningWeight=WEIGHT,outSourceName=""):
         '''调用模块'''
         if self.decisionTreeType == "Discrete":
             #生成离散特有中间树：cartTree
-            self.dictTree,self.datasize,self.costtime,self.trainACC = CART_Discrete.GenerateCART(self.dataSource,self.sourceName,self.fields,"dictTree",pruning,outSourceName)
+            self.dictTree,self.datasize,self.costtime,self.trainACC = CART_Discrete.GenerateCART(self.dataSource,self.sourceName,self.fields,"dictTree",pruning,pruningWeight,outSourceName)
         elif self.decisionTreeType == "Continuous":
-            self.dictTree,self.datasize,self.costtime,self.trainACC = CART_Continuous.GenerateCART(self.dataSource,self.sourceName,self.fields,"dictTree",pruning,outSourceName)
+            self.dictTree,self.datasize,self.costtime,self.trainACC = CART_Continuous.GenerateCART(self.dataSource,self.sourceName,self.fields,"dictTree",pruning,pruningWeight,outSourceName)
         else:
             print('Generate CART Error!')
             self.dictTree = {'message':'Generate CART Error! type not specify or dataset has a problem','children':"null"}

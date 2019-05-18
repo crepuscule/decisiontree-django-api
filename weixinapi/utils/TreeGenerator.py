@@ -43,7 +43,7 @@ class TreeGenerator:
             #try:
             from weixinapi.Standard_CART import CART_Standard
             CART_controller = CART_Standard.CART('db',DBNAME+dataSet.table_name,partDictTree['fields'])
-            partDictTree['tree_dict'] = CART_controller.GenerateCART('json',partDictTree['optimize_type'],DBNAME+outDataSetName) 
+            partDictTree['tree_dict'] = CART_controller.GenerateCART('json',partDictTree['optimize_type'],partDictTree['pruning_weight'],DBNAME+outDataSetName) 
             partDictTree['data_type'],partDictTree['nodes_num'],partDictTree['depth'],partDictTree['datasize'],partDictTree['costtime'],partDictTree['trainACC']=CART_controller.CalcProperties()
             #except Exception as e:
             #    print("in utils/TreeGenerator:",e)
@@ -54,7 +54,7 @@ class TreeGenerator:
             from weixinapi.Standard_C45 import C45_Standard
             #注意 C45未开发数据库读取接口
             C45_controller = C45_Standard.C45('db',DBNAME+dataSet.table_name,partDictTree['fields'])
-            partDictTree['tree_dict'] = C45_controller.GenerateC45('json',partDictTree['optimize_type'],DBNAME+outDataSetName) 
+            partDictTree['tree_dict'] = C45_controller.GenerateC45('json',partDictTree['optimize_type'],partDictTree['pruning_weight'],DBNAME+outDataSetName) 
             partDictTree['data_type'],partDictTree['nodes_num'],partDictTree['depth'],partDictTree['datasize'],partDictTree['costtime'],partDictTree['trainACC']=C45_controller.CalcProperties()
             #except Exception as e:
             #    print("in utils/TreeGenerator:",e)

@@ -14,9 +14,11 @@ DBPWD = "12345678"
 SPLIT_PROP = 0.25
 #评价模型测试正确率所占比
 TESTACC_PROP = 0.6
-#剪枝时剪枝后误差比重（值越大剪枝数越少）
-WEIGHT = 1.675
+#剪枝时剪枝后误差比重（值越大剪枝保留越多）
+WEIGHT = 1.1
 
+
+diguiceshu = 2
 '''
 基本功能:[ok]
 
@@ -291,7 +293,7 @@ def testMajor(major,testData):
     return float(errorCount)
 
 #weight剪枝权重，值越大剪去的枝越少
-def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT):#weight=1.675):    
+def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT,depth=1):#weight=1.675):    
     #当前节点的属性名称
     firstStr = inputTree['name']    #firstStr = list(inputTree.keys())[0]       #所有keys中的第一个
     #当前节点的所有孩子
@@ -321,14 +323,14 @@ def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT):#weight=1.675):
         subDataSet = splitDataSet(dataSet,labelIndex,float(threshold),"lt")
         subTestSet = splitDataSet(testData,labelIndex,float(threshold),"lt")
         if len(subDataSet) > 0 and len(subTestSet) > 0:
-            inputTree["children"][1] = pruningTree(children[1],subDataSet,subTestSet,subLabels,weight)
+            inputTree["children"][1] = pruningTree(children[1],subDataSet,subTestSet,subLabels,weight,depth+1)
 
         #左孩子
         threshold = re.findall(r"\d+\.?\d*",children[0]['text'])[0]  
         subDataSet = splitDataSet(dataSet,labelIndex,float(threshold),"gt")
         subTestSet = splitDataSet(testData,labelIndex,float(threshold),"gt")
         if len(subDataSet) > 0 and len(subTestSet) > 0:
-            inputTree["children"][0] = pruningTree(children[0],subDataSet,subTestSet,subLabels,weight)
+            inputTree["children"][0] = pruningTree(children[0],subDataSet,subTestSet,subLabels,weight,depth+1)
     
         print("误差，测试集和剪枝后集合",calcTestErr(inputTree,testData,subLabels) ,"\n",testMajor(majorityCnt(classList),testData))    
         if calcTestErr(inputTree,testData,subLabels) < weight*testMajor(majorityCnt(classList),testData):
@@ -348,7 +350,7 @@ def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT):#weight=1.675):
 #生成CART树
 #输入:dataSource:{csv,db} sourceName:{csv,db.table} fields{}   target:{tree,json}
 #输出:根据target输出tree,json,训练集精度,训练集大小,运行时间
-def GenerateCART(dataSource="db",sourceName="db_slg.iri_train",fields=[],target="dictTree",pruning="none",outSourceName="db_slg.iri_test"):
+def GenerateCART(dataSource="db",sourceName="db_slg.iri_train",fields=[],target="dictTree",pruning="none",pruningWeight=WEIGHT,outSourceName="db_slg.iri_test"):
     '''常用变量定义'''
     #数据集合(二维数组)
     sourceDataSet = []
@@ -358,7 +360,7 @@ def GenerateCART(dataSource="db",sourceName="db_slg.iri_train",fields=[],target=
     dictTree = {}
     DictTrees = []
     ACC = 0.0
-    ACCIndex = 0
+    ACCIndex = -1 
     
     datasize = 0
     costtime = 0.0
@@ -383,11 +385,11 @@ def GenerateCART(dataSource="db",sourceName="db_slg.iri_train",fields=[],target=
 
     '''树训练,将循环5次找到最佳模型，三种剪枝模式由高层指定'''    
     #五次循环找最佳
-    for i in range(5):        
+    for i in range(15):        
         #内剪枝只有内部测试集精度
         #内部交叉验证剪枝,需要切分数据集,使用内部测试数据集合训练
         if pruning == "inpruning":
-            dataSet,intestData = createCVDataSet(sourceDataSet,some_list=[0,1],probabilities=[0.75,0.25])
+            dataSet,intestData = createCVDataSet(sourceDataSet,some_list=[0,1],probabilities=[1-SPLIT_PROP,SPLIT_PROP])
             #生成
             starttime = datetime.datetime.now()
             
@@ -397,7 +399,7 @@ def GenerateCART(dataSource="db",sourceName="db_slg.iri_train",fields=[],target=
 
             #剪枝
             print("内剪枝之前:",json.dumps(dictTree))
-            pruningTree(dictTree,dataSet,intestData,labels)
+            pruningTree(dictTree,dataSet,intestData,labels,pruningWeight,1)
             #评测
             trainACC,result = checkAccuracy(dictTree,dataSet,labels)
             testACC,result = checkAccuracy(dictTree,intestData,labels)
@@ -411,7 +413,7 @@ def GenerateCART(dataSource="db",sourceName="db_slg.iri_train",fields=[],target=
             
             endtime = datetime.datetime.now()
             print('外剪枝之前',json.dumps(dictTree))
-            pruningTree(dictTree,dataSet,outtestData,labels)
+            pruningTree(dictTree,dataSet,outtestData,labels,pruningWeight,1)
             #评测
             trainACC,result = checkAccuracy(dictTree,dataSet,labels)
             testACC,result = checkAccuracy(dictTree,outtestData,labels)
@@ -435,18 +437,35 @@ def GenerateCART(dataSource="db",sourceName="db_slg.iri_train",fields=[],target=
         
         print("第",i,"棵树:\n",DictTrees)
         #只有树的根节点有孩子时才能通过验证
-        if ((1-TESTACC_PROP)*trainACC+TESTACC_PROP*testACC > ACC) and (dictTree["children"] != "null"):
+        nodenums = json.dumps(dictTree).count('"name"')
+        print("^^^^^^^^:",nodenums)
+        #多于12个节点的不要
+        if (pruning == 'inpruning' or pruning == 'outpruning' ) and ( nodenums > 11 or nodenums < 4):
+            continue
+        elif ((1-TESTACC_PROP)*trainACC+TESTACC_PROP*testACC > ACC) and (dictTree["children"] != "null"):
             ACC = (1-TESTACC_PROP)*trainACC+TESTACC_PROP*testACC
             ACCIndex = i
+        print("&&&&&&",ACCIndex)
 
     '''树输出'''
     print("\n------------------总情况概览---------------------:\n",DictTrees)
+    print(ACCIndex)
+    global diguiceshu
+    if (pruning == 'inpruning' or pruning == 'outpruning' ) and (ACCIndex == -1) and (diguiceshu > 0):
+        diguiceshu -= 1
+        #自动调整权值,节点数目太大，需要调小权值
+        if nodenums > 11:
+            return GenerateCART(dataSource,sourceName,fields,target,pruning,pruningWeight-0.1,outSourceName)
+        elif nodenums < 4:
+            return GenerateCART(dataSource,sourceName,fields,target,pruning,pruningWeight+0.1,outSourceName)
+        else:
+            return GenerateCART(dataSource,sourceName,fields,target,pruning,pruningWeight,outSourceName)
     #返回顺序是 字典树，参与构建树的数据集大小，生成时间，训练集精度[，测试集精度(用不到)]
     if target == "dictTree":
-        print('-------------------------构造完毕:dictTree:----------------------------\n',json.dumps(dictTree))
-        return DictTrees[ACCIndex][:-1]
+        print('-------------------------构造完毕:DictTree[ACCIndex]:----------------------------\n',json.dumps(DictTrees[ACCIndex][0]))
+        return DictTrees[ACCIndex][:-1]        
     elif target == "json":
-        print('-------------------------构造完毕:json:----------------------------\n',json.dumps(dictTree))         
+        print('-------------------------构造完毕:json:----------------------------\n',jjson.dumps(DictTrees[ACCIndex][0]))         
         return json.dumps(DictTrees[ACCIndex][0]),DictTrees[ACCIndex][1],DictTrees[ACCIndex][2],DictTrees[ACCIndex][3]
     else:
         return {"message":"please specify the target, dictTree，biTree or json"},datasize,costtime,trainACC
@@ -499,21 +518,7 @@ if __name__ == '__main__':
     print("第",ACCIndex,"个最优",json.dumps(DictTrees[ACCIndex][0]))
     print("原训练：",DictTrees[ACCIndex][1],"原测试：",DictTrees[ACCIndex][2])
     '''
-    
-    
-    import datetime
-    
-    DictTrees = []
-    ACC = 0.0
-    ACCIndex = 0
-    fields=['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','OperatingSystem','CppProgramming','ProgrammingPractice','JavaProgramming','COM_VC2']
-    for i in range(5):
-        dictTree,datasize,costtime,trainACC = GenerateCART(dataSource="db",sourceName="db_dataset.15级计算机专业个人成绩表_train",fields=fields,target="dictTree",pruning="inpruning",outSourceName="db_dataset.15级计算机专业个人成绩表_test")
-            
-        testACC,results = CheckAccuracy(dictTree,dataSource="db",sourceName="db_dataset.15级计算机专业个人成绩表_test",fields=fields)
-        DictTrees.append((dictTree,datasize,costtime,trainACC,testACC))        
-        print("第",i,DictTrees)
-        if (1-TESTACC_PROP)*trainACC+(TESTACC_PROP)*testACC > ACC:
-            ACC = (1-TESTACC_PROP)*trainACC+(TESTACC_PROP)*testACC
-            ACCIndex = i
-    print(DictTrees[ACCIndex][0],"数据量:",DictTrees[ACCIndex][1],"时间:",DictTrees[ACCIndex][2],"ms 训练精度:",DictTrees[ACCIndex][3],"测试精度:",DictTrees[ACCIndex][4],)
+    fields = ["English","CET4","AdvancedMath","LinearAlgebra","ProbabilityTheory","Programming","ProgrammingPractice","NCRE_MS2"]
+    dictTree = GenerateCART(dataSource="db",sourceName="db_dataset.train_15_transcripts_nocs",fields=fields,target="dictTree",pruning="inpruning",pruningWeight=1.1,outSourceName="db_dataset.test_15_transcripts_nocs")
+    print(dictTree)
+    print(CheckAccuracy(dictTree[0],dataSource='db',sourceName="db_dataset.test_15_transcripts_nocs",fields=fields))

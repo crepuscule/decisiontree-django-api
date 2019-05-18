@@ -36,7 +36,7 @@ TESTACC_PROP = 0.6
 #剪枝时剪枝后误差比重（值越大剪枝数越少）
 WEIGHT = 1#1.675
 
-
+diguiceshu = 2
 
 #------------------------I.数据读取----------------------------
 # I. 从一个DB读取数据判断是否为离散型
@@ -464,7 +464,7 @@ def testMajor(major,testData):
     return float(errorCount)        
 
 #weight剪枝权重，值越大剪去的枝越少
-def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT,decisionTreeType="Continuous"):
+def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT,decisionTreeType="Continuous",depth=1):
     #pdb.set_trace()
     #当前节点的属性名称
     firstStr = inputTree['name']    #firstStr = list(inputTree.keys())[0]       #所有keys中的第一个
@@ -511,7 +511,7 @@ def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT,decisionTreeType
             subDataSet = splitDataSet(dataSet,labelIndex,float(threshold),"L")
             subTestSet = splitDataSet(testData,labelIndex,float(threshold),"L")
             if len(subDataSet) > 0 and len(subTestSet) > 0:
-                inputTree["children"][1] = pruningTree(children[1],subDataSet,subTestSet,subLabels,weight,decisionTreeType)
+                inputTree["children"][1] = pruningTree(children[1],subDataSet,subTestSet,subLabels,weight,decisionTreeType,depth+1)
 
             #左孩子
             threshold = re.findall(r"\d+\.?\d*",children[0]['text'])[0]  
@@ -519,13 +519,15 @@ def pruningTree(inputTree,dataSet,testData,labels,weight=WEIGHT,decisionTreeType
             #print("subTest splitDataSet:",len(dataSet[0]),"\n",labelIndex,"\n",float(threshold))
             subTestSet = splitDataSet(testData,labelIndex,float(threshold),"R")
             if len(subDataSet) > 0 and len(subTestSet) > 0:
-                inputTree["children"][0] = pruningTree(children[0],subDataSet,subTestSet,subLabels,weight,decisionTreeType)
+                inputTree["children"][0] = pruningTree(children[0],subDataSet,subTestSet,subLabels,weight,decisionTreeType,depth+1)
         
             print("误差，测试集和剪枝后集合",calcTestErr(inputTree,testData,subLabels,decisionTreeType) ," ",testMajor(majorityCnt(classList),testData))    
             if calcTestErr(inputTree,testData,subLabels,decisionTreeType) < weight*testMajor(majorityCnt(classList),testData):
                 if inputTree["children"][0]["name"] == inputTree["children"][1]["name"]:
                     return {'name':majorityCnt(classList),'col':'null','text':inputTree['text'],'children':'null'}
                 # 剪枝后的误差反而变大，不作处理，直接返回
+                if depth > 4:
+                    return {'name':majorityCnt(classList),'col':'null','text':inputTree['text'],'children':'null'}
                 return inputTree#1.675
             else:
                 # 剪枝，原父结点变成子结点，其类别由多数表决法决定
@@ -588,10 +590,10 @@ class C45:
             self.typeList = [1 for _ in range(len(self.fields))]
 
 
-    def GenerateC45(self,target="dictTree",pruning="none",outSourceName="db_dataset.15级计算机专业个人成绩表_test"):
+    def GenerateC45(self,target="dictTree",pruning="none",pruningWeight=WEIGHT,outSourceName="db_dataset.15级计算机专业个人成绩表_test"):
         DictTrees = []
         ACC = 0.0
-        ACCIndex = 0
+        ACCIndex = -1
 
         datasize = 0
         costtime = 0.0
@@ -604,7 +606,7 @@ class C45:
             outtestData,swaplabels = readFromDB(outdbname,outtablename,self.bakFields,self.decisionTreeType)  
         
         #五次循环找最佳
-        for i in range(5):        
+        for i in range(15):        
             sourceDataSet = self.sourceDataSet     
             typeList = self.typeList
             #labels = self.fields
@@ -624,7 +626,7 @@ class C45:
 
                 #剪枝
                 print("内剪枝之前:",json.dumps(dictTree))
-                pruningTree(dictTree,dataSet,intestData,labels,WEIGHT,decisionTreeType)
+                pruningTree(dictTree,dataSet,intestData,labels,pruningWeight,decisionTreeType)
                 #评测
                 trainACC,result = checkAccuracy(dictTree,dataSet,labels,decisionTreeType)
                 testACC,result = checkAccuracy(dictTree,intestData,labels,decisionTreeType)
@@ -639,7 +641,7 @@ class C45:
                 
                 endtime = datetime.datetime.now()
 
-                pruningTree(dictTree,dataSet,outtestData,labels,WEIGHT,decisionTreeType)
+                pruningTree(dictTree,dataSet,outtestData,labels,pruningWeight,decisionTreeType)
                 #评测
                 trainACC,result = checkAccuracy(dictTree,dataSet,labels,decisionTreeType)
                 testACC,result = checkAccuracy(dictTree,outtestData,labels,decisionTreeType)
@@ -663,10 +665,30 @@ class C45:
             
             print("第",i,"棵树:\n",DictTrees)
             #只有树的根节点有孩子时才能通过验证
-            if ((1-TESTACC_PROP)*trainACC+TESTACC_PROP*testACC > ACC) and (dictTree["children"] != "null"):
+            nodenums = json.dumps(dictTree).count('"name"')
+            print("^^^^^^^^:",nodenums)
+            #多于12个节点的不要
+            if (pruning == 'inpruning' or pruning == 'outpruning' ) and ( nodenums > 21 or nodenums <= 6):
+                continue
+            elif ((1-TESTACC_PROP)*trainACC+TESTACC_PROP*testACC > ACC) and (dictTree["children"] != "null"):
                 ACC = (1-TESTACC_PROP)*trainACC+TESTACC_PROP*testACC
-                ACCIndex = i    
+                ACCIndex = i
+            print("&&&&&&",ACCIndex)
         
+        
+            '''树输出'''
+        print("\n------------------总情况概览---------------------:\n",DictTrees)
+        print(ACCIndex)
+        global diguiceshu
+        if (pruning == 'inpruning' or pruning == 'outpruning' ) and (ACCIndex == -1) and (diguiceshu > 0):
+            diguiceshu -= 1
+            #自动调整权值,节点数目太大，需要调小权值
+            if nodenums > 21:
+                return self.GenerateC45(target,pruning,pruningWeight-0.1,outSourceName)
+            elif nodenums <= 6 :
+                return self.GenerateC45(target,pruning,pruningWeight+0.1,outSourceName)
+            else:
+                return self.GenerateC45(target,pruning,pruningWeight,outSourceName)
         self.dictTree,self.datasize,self.costtime,self.trainACC,testACC = DictTrees[ACCIndex]
         #如果指定返回dictTree
         if target == "dictTree":
@@ -803,12 +825,12 @@ class C45:
 #----------------------模块直接执行--------------------------
 if __name__ == '__main__':
   
-    fields=['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','OperatingSystem','CppProgramming','ProgrammingPractice','JavaProgramming','COM_VC2']
-    
-    control = C45('db',"db_dataset.lense_train",fields=[])
-    dictTree = control.GenerateC45('dictTree','outpruning','db_dataset.lense_test')
+    #fields=['English','CET4','CET6','AdvancedMath','LinearAlgebra','ProbabilityTheory','DataStructure','DataBase','OperatingSystem','CppProgramming','ProgrammingPractice','JavaProgramming','COM_VC2']
+    fields = ["English","CET4","AdvancedMath","LinearAlgebra","ProbabilityTheory","Programming","ProgrammingPractice","COM_MS"]
+    control = C45('db',"db_dataset.train_15_transcripts_nocs",fields=fields)
+    dictTree = control.GenerateC45('dictTree','inpruning',0.8,'db_dataset.test_15_transcripts_nocs')
     print(control.CalcProperties())
-    testACC = control.ClassifyAndAnalysis(dictTree,'db','db_dataset.lense_test',[],"Discrete")
+    testACC = control.ClassifyAndAnalysis(dictTree,'db','db_dataset.test_15_transcripts_nocs',fields,"Continuous")
     print(testACC[0])
     
     print(control.GenerateIfThen(dictTree,(control.CalcProperties())[0]))
