@@ -1,4 +1,4 @@
-# 使用Django开发决策树系统后端接口应用文档
+﻿# 使用Django开发决策树系统后端接口应用文档
 >contents
 1. 创建Django新项目和新应用
 2. 创建模型
@@ -113,7 +113,7 @@ class Analysis(models.Model):
 3. 运行数据迁移
 
 运行命令`python manage.py makemigrations weixinapi`生成/migrations/0001_initial.py 迁移文件
-此时可以使用命令`python manage.py sqlmigrate polls 0001`查看迁移使用到的数据库SQL语句
+此时可以使用命令`python manage.py sqlmigrate weixinapi 0001`查看迁移使用到的数据库SQL语句
 ```
 001
 BEGIN;
