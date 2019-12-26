@@ -81,7 +81,7 @@ DATABASES = {
         'NAME': 'db_weixinapp',
         'USER': 'root',
         'PASSWORD': '12345678',
-        'HOST': '127.0.0.1',
+        'HOST': '47.95.196.25',
         'PORT': '3306',
     }
 }
